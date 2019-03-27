@@ -113,12 +113,9 @@ do
 	if [ ${line:0:1} != "#" ]; then
 		if [ ${line:0:4} == "http" ]; then
             download_url=$line
-            local_url=$media_dir/${line##*/}
+            local_url=$media_dir/`url_get_path $download_url`/`url_get_file $download_url`
 		else
-            echo url: $url
-            echo line: $line
             download_url=${url%\/*}/$line
-            echo dowload_url: $download_url
             local_url=$media_dir/$line
 		fi
         echo $local_url >> $local_file
