@@ -1,6 +1,30 @@
 #!/bin/bash
 #$1 url
 
+url_get_protocol() {
+    url=$1
+    echo ${url%%:*}
+}
+
+url_get_domain() {
+    url=$1
+    domain=${url#*\/\/}
+    domain=${domain%%\/*}
+    echo $domain
+}
+
+url_get_path() {
+    url=$1
+    domain=${url#*\/\/}
+    path=${domain#*\/}
+    echo ${path%\/*}
+}
+
+url_get_file() {
+    url=$1
+    echo ${url##*\/}
+}
+
 download() {
     #$1 url
     #$2 dst
@@ -43,6 +67,11 @@ remote_file=remote_$file
 domain=${url%%$file*}
 media_dir=./ts
 local_file=local.m3u8
+
+url_get_protocol $url
+url_get_domain $url
+url_get_path $url
+url_get_file $url
 
 mkdir -p $media_dir
 
