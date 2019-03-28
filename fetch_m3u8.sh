@@ -57,7 +57,7 @@ download() {
             return
         fi
 	    echo "download" $1 "--->" $2/$3
-        wget -q -P $2 $1 -O $3
+        wget -P $2 $1 -O $3
     fi
 }
 
@@ -85,17 +85,24 @@ download_full_path() {
     fi
 }
 
-url=$1
+if [ $# -ge 1 ]; then
+    echo $1 > url.txt
+fi
+
+url=`cat url.txt`
+echo url: $url
 file=${url##*/}
 remote_file=remote_$file
 domain=${url%%$file*}
 media_dir=./ts
 local_file=local.m3u8
 
+
 protocol=`url_get_protocol $url`
 domain=`url_get_domain $url`
 path=`url_get_path $url`
 file=`url_get_file $url`
+
 
 mkdir -p $media_dir
 
@@ -108,7 +115,7 @@ download $url . $remote_file
 download_url=""
 local_url=""
 
-while read line
+while read line || [[ -n ${line} ]]
 do
 	if [ ${line:0:1} != "#" ]; then
 		if [ ${line:0:4} == "http" ]; then
