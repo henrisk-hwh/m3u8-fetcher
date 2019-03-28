@@ -55,7 +55,7 @@ check_data_by_header() {
     [ -e $target_header_file ] || return 2
 
     local target_data_file_length=`ls -l $target_data_file | awk '{print $5}'`
-    local target_header_file_content_length=`cat $target_header_file | grep "content-length" | awk '{print $2}'`
+    local target_header_file_content_length=`cat $target_header_file | grep -i "content-length" | awk '{print $2}'`
     
     echo "data-file-length:   " $target_data_file_length
     echo "http content-length:" $target_header_file_content_length
