@@ -103,6 +103,7 @@ local_url=""
 
 total_line=`cat $remote_file | grep -v "#" | wc -l`
 declare -i cur_finish=0
+declare -i success_count=0
 
 while read line || [[ -n ${line} ]]
 do
@@ -119,6 +120,8 @@ do
         download_full_path_and_check $download_url $media_dir
         if [ $? -ne 0 ]; then
             log "Fetch $download_url failed!!!!"
+        else
+            let success_count++
         fi
         let cur_finish++
         echo "[$cur_finish/$total_line]"'/***********************************************************************/'
@@ -126,3 +129,5 @@ do
         echo $line >> $local_file
 	fi
 done  < $remote_file
+
+[ $success_count -eq $total_line ] && touch fetch_done
