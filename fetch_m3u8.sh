@@ -1,6 +1,8 @@
 #!/bin/bash
 #$1 url
 
+. url_utils.sh
+. curl_download_utils.sh
 
 download() {
     #$1 url
@@ -103,9 +105,10 @@ do
             local_url=$media_dir/$line
 		fi
         echo $local_url >> $local_file
-        download_full_path $download_url $media_dir
+        #download_full_path $download_url $media_dir
+        download_full_path_and_check $download_url $media_dir
+        echo '/***********************************************************************/'
     else
         echo $line >> $local_file
 	fi
-    echo "\n\n\n\n"
 done  < $remote_file

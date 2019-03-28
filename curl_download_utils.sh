@@ -1,3 +1,15 @@
+download_http_header() {
+    #1 url
+    #2 base path
+    #3 header file name
+    local url=$1
+    local base_path=$2
+    local header_file=$3
+    curl -I $url > $base_path/$header_file
+    dos2unix $base_path/$header_file
+    return $#
+}
+
 download_http_data_and_header() {
     #1 url
     #2 base path
@@ -40,7 +52,7 @@ check_data_by_header() {
     local target_header_file=$2
 
     [ -e $target_data_file ] || return 1
-    [ -e $target_header_file ] || return 1
+    [ -e $target_header_file ] || return 2
 
     local target_data_file_length=`ls -l $target_data_file | awk '{print $5}'`
     local target_header_file_content_length=`cat $target_header_file | grep "content-length" | awk '{print $2}'`
@@ -78,9 +90,13 @@ download_full_path_and_check() {
     declare -i retry=1
     while [ $retry -le 3 ]; do
         check_data_by_header $data_file_full $header_file_full
-        if [ $? -eq 0 ]; then
-            echo $data_file exsit! skip $url
+        ret=$?
+        if [ $ret -eq 0 ]; then
+            echo $url download and check sucessfully!
             return 0
+        elif [ $ret -eq 2 ]; then
+            echo "download $url header only to check the exist file: $data_file_full"
+            download_http_header $url $dst/$url_path $header_file
         else
             download_http_data_and_header $url $dst/$url_path $url_file $header_file
             let retry++
