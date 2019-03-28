@@ -1,6 +1,7 @@
 #!/bin/bash
 #$1 url
 
+. contants.sh
 . url_utils.sh
 . curl_download_utils.sh
 
@@ -70,33 +71,34 @@ log() {
     echo $1 >> $log_file
 }
 
+update_remote=0
 if [ $# -ge 1 ]; then
-    echo $1 > url.txt
+    echo $1 > $cache_url_file
+    update_remote=1
 fi
 
-url=`cat url.txt`
-echo url: $url
-file=${url##*/}
-remote_file=remote_$file
-domain=${url%%$file*}
-media_dir=./ts
-local_file=local.m3u8
-log_file=log
+url=`cat $cache_url_file`
 
 protocol=`url_get_protocol $url`
 domain=`url_get_domain $url`
 path=`url_get_path $url`
 file=`url_get_file $url`
 
+remote_file=$remote$file
 
 mkdir -p $media_dir
 rm -rf $log_file
+
+[ $update_remote -eq 0 ] || rm -rf $remote_file
 
 echo fetch domain:$domain, file:$file, remote_file:$remote_file
 
 #fetch m3u8 file
 rm -rf $file $local_file
-[ -e $remote_file ] || download $url . $remote_file
+if [ ! -e $remote_file ]; then
+    download $url . $remote_file
+    [ $? -eq 0 ] || exit 1
+fi
 
 download_url=""
 local_url=""
@@ -110,11 +112,10 @@ do
 	if [ ${line:0:1} != "#" ]; then
 		if [ ${line:0:4} == "http" ]; then
             download_url=$line
-            local_url=$media_dir/`url_get_path $download_url`/`url_get_file $download_url`
 		else
             download_url=${url%\/*}/$line
-            local_url=$media_dir/$line
 		fi
+        local_url=$media_dir/`url_get_path $download_url`/`url_get_file $download_url`
         echo $local_url >> $local_file
         #download_full_path $download_url $media_dir
         download_full_path_and_check $download_url $media_dir
@@ -130,4 +131,4 @@ do
 	fi
 done  < $remote_file
 
-[ $success_count -eq $total_line ] && touch fetch_done
+[ $success_count -eq $total_line ] && touch $done_file
