@@ -54,6 +54,13 @@ check_data_by_header() {
     [ -e $target_data_file ] || return 1
     [ -e $target_header_file ] || return 2
 
+    local http_code=`cat $target_header_file | grep -i http | awk '{print $2}'`
+    http_code=${http_code%\n*}
+    if [ x"$http_code" != "x200" ]; then
+        echo $target_header_file http code is $http_code
+        return 1
+    fi
+
     local target_data_file_length=`ls -l $target_data_file | awk '{print $5}'`
     local target_header_file_content_length=`cat $target_header_file | grep -i "content-length" | awk '{print $2}'`
     
@@ -89,6 +96,7 @@ download_full_path_and_check() {
 
     declare -i retry=1
     while [ $retry -le 3 ]; do
+        let retry++
         check_data_by_header $data_file_full $header_file_full
         ret=$?
         if [ $ret -eq 0 ]; then
@@ -99,7 +107,7 @@ download_full_path_and_check() {
             download_http_header $url $dst/$url_path $header_file
         else
             download_http_data_and_header $url $dst/$url_path $url_file $header_file
-            let retry++
         fi
     done
+    return 1
 }

@@ -64,6 +64,12 @@ download_full_path() {
     fi
 }
 
+log() {
+    #1 log text
+    echo $1
+    echo $1 > $log_file
+}
+
 if [ $# -ge 1 ]; then
     echo $1 > url.txt
 fi
@@ -75,7 +81,7 @@ remote_file=remote_$file
 domain=${url%%$file*}
 media_dir=./ts
 local_file=local.m3u8
-
+log_file=log
 
 protocol=`url_get_protocol $url`
 domain=`url_get_domain $url`
@@ -107,6 +113,9 @@ do
         echo $local_url >> $local_file
         #download_full_path $download_url $media_dir
         download_full_path_and_check $download_url $media_dir
+        if [ $? -ne 0 ]; then
+            log "Fetch $download_url failed!!!!"
+        fi
         echo '/***********************************************************************/'
     else
         echo $line >> $local_file
