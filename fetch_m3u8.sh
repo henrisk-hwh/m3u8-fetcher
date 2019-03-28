@@ -67,7 +67,7 @@ download_full_path() {
 log() {
     #1 log text
     echo $1
-    echo $1 > $log_file
+    echo $1 >> $log_file
 }
 
 if [ $# -ge 1 ]; then
@@ -90,15 +90,19 @@ file=`url_get_file $url`
 
 
 mkdir -p $media_dir
+rm -rf $log_file
 
 echo fetch domain:$domain, file:$file, remote_file:$remote_file
 
 #fetch m3u8 file
-rm -rf $file $local_file $remote_file
-download $url . $remote_file
+rm -rf $file $local_file
+[ -e $remote_file ] || download $url . $remote_file
 
 download_url=""
 local_url=""
+
+total_line=`cat $remote_file | grep -v "#" | wc -l`
+declare -i cur_finish=0
 
 while read line || [[ -n ${line} ]]
 do
@@ -116,7 +120,8 @@ do
         if [ $? -ne 0 ]; then
             log "Fetch $download_url failed!!!!"
         fi
-        echo '/***********************************************************************/'
+        let cur_finish++
+        echo "[$cur_finish/$total_line]"'/***********************************************************************/'
     else
         echo $line >> $local_file
 	fi

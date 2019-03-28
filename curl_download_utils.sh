@@ -37,7 +37,7 @@ download_http_data_and_header() {
         return 0
     else
         rm -rf $data_file_name $header_file_name
-        echo "curl download $url failed!"
+        echo "Curl download $url failed!"
         return 1
     fi
 }
@@ -57,7 +57,7 @@ check_data_by_header() {
     local http_code=`cat $target_header_file | grep -i http | awk '{print $2}'`
     http_code=${http_code%\n*}
     if [ x"$http_code" != "x200" ]; then
-        echo $target_header_file http code is $http_code
+        echo "Check http code($http_code) failed, header file: $target_header_file"
         return 1
     fi
 
@@ -68,10 +68,9 @@ check_data_by_header() {
     echo "http content-length:" $target_header_file_content_length
 
     if [ x"$target_data_file_length" = x"${target_header_file_content_length%$*}" ]; then
-        echo check by http content-length success!
+        echo Check by http content-length success!
         return 0
     else
-        echo $target_data_file_length $target_header_file_content_length
         echo check by http content-length failed!
         return 1
     fi
