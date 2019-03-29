@@ -86,7 +86,7 @@ download_full_path_and_check() {
     local url_path=`url_get_path $url`
     local url_file=`url_get_file $url`
 
-    local header_file=$url_file.header
+    local header_file=$url_file$header
 
     local data_file_path=$dst/$url_path
 

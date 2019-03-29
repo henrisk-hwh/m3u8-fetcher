@@ -97,7 +97,7 @@ echo fetch domain:$domain, file:$file, remote_file:$remote_file
 rm -rf $file $local_file
 if [ ! -e $remote_file ]; then
     download $url . $remote_file
-    [ $? -eq 0 ] || exit 1
+    [ $? -eq 0 ] || rm -rf $remote_file && exit $ERROR_FETCH_M3U8_URL_FAILED
 fi
 
 download_url=""
@@ -131,4 +131,9 @@ do
 	fi
 done  < $remote_file
 
-[ $success_count -eq $total_line ] && touch $done_file
+if [ $success_count -eq $total_line ]; then
+    touch $done_file
+    return 0
+else
+    return $ERROR_FETCH_TS_ELEM_FAILED
+fi
