@@ -133,7 +133,7 @@ done  < $remote_file
 
 if [ $success_count -eq $total_line ]; then
     touch $done_file
-    return 0
+    exit 0
 else
-    return $ERROR_FETCH_TS_ELEM_FAILED
+    exit $ERROR_FETCH_TS_ELEM_FAILED
 fi
