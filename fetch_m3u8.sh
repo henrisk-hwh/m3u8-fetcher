@@ -65,6 +65,15 @@ download_full_path() {
     fi
 }
 
+check_m3u8_media() {
+    #1 target_m3u8
+
+    target_m3u8=$1
+    cat $target_m3u8 | grep "#EXTM3U"
+    
+    return $?
+}
+
 log() {
     #1 log text
     echo $1
@@ -85,6 +94,9 @@ path=`url_get_path $url`
 file=`url_get_file $url`
 
 remote_file=$remote$file
+local_http_file=$local$file
+
+local_path1=$local_http_path${PWD##*$local_http_root}
 
 mkdir -p $media_dir
 rm -rf $log_file
@@ -94,10 +106,22 @@ rm -rf $log_file
 echo fetch domain:$domain, file:$file, remote_file:$remote_file
 
 #fetch m3u8 file
-rm -rf $file $local_file
+rm -rf $file $local_file $local_http_file
 if [ ! -e $remote_file ]; then
-    download $url . $remote_file
-    [ $? -eq 0 ] || rm -rf $remote_file && exit $ERROR_FETCH_M3U8_URL_FAILED
+    #download $url . $remote_file
+    download_sample $url $remote_file
+    if [ $? -ne 0 ]; then
+        rm -rf $remote_file
+        exit $ERROR_FETCH_M3U8_URL_FAILED
+    fi
+fi
+
+check_m3u8_media $remote_file
+if [ $? -ne 0 ]; then
+    log "$url is not m3u8 file:"
+    cat $remote_file
+    rm -rf $remote_file
+    exit $ERROR_FETCH_M3U8_URL_FAILED
 fi
 
 download_url=""
@@ -117,6 +141,7 @@ do
 		fi
         local_url=$media_dir/`url_get_path $download_url`/`url_get_file $download_url`
         echo $local_url >> $local_file
+        echo $local_path1/${local_url##*$domain} >> $local_http_file
         #download_full_path $download_url $media_dir
         download_full_path_and_check $download_url $media_dir
         if [ $? -ne 0 ]; then
@@ -128,6 +153,7 @@ do
         echo "[$cur_finish/$total_line]"'/***********************************************************************/'
     else
         echo $line >> $local_file
+        echo $line >> $local_http_file
 	fi
 done  < $remote_file
 

@@ -110,3 +110,14 @@ download_full_path_and_check() {
     done
     return 1
 }
+
+download_sample() {
+    #1 url
+    #2 rename
+
+    url=$1
+    target_file=$2
+
+    curl $url -o $target_file
+    return $?
+}
