@@ -117,7 +117,7 @@ download_sample() {
 
     url=$1
     target_file=$2
-
+    echo curl $url -o $target_file
     curl $url -o $target_file
     return $?
 }
