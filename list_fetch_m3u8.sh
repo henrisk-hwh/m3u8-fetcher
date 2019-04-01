@@ -101,7 +101,7 @@ create_target_by_index_and_fetch() {
         local index=`get_new_index`
         ln -s $media_path $index
         ret=$index
-        echo Create_target_by_index_and_fetch $url successfully, index: $local_index
+        echo Create_target_by_index_and_fetch $url successfully, index: $index
     fi
 
     return $ret
