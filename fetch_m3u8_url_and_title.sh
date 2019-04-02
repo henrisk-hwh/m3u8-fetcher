@@ -8,7 +8,7 @@ get_m3u8_url_from_html_file() {
     #1 html file
     #return m3u8 url
     local url='https://m3u8.cdnpan.com'
-    local data=`cat $1 | grep baiduyunbo`
+    local data=`cat $1 | grep -a baiduyunbo`
     local id=${data#*baiduyunbo}
     id=${id#*id=}
     id=${id%%\"*}
@@ -38,7 +38,7 @@ fetch_m3u8_url_and_title_from_html_data_file() {
                 continue
             fi
         fi
-        cat $tmp_file | grep "baiduyunbo" > /dev/null
+        cat $tmp_file | grep -a "baiduyunbo" > /dev/null
         if [ $? -ne 0 ]; then
             rm -rf $tmp_file
             continue
@@ -97,15 +97,17 @@ path=`url_get_path $url`
 export PAGES=$pages
 #$1 data_file
 rm -rf m3u8_title.txt
-mkdir tmp
+mkdir -p tmp
 cd tmp
 
 declare -i page=1
 while [ $page -le $pages ]; do
     export PAGE=$page
     page_url=$url'&page='$page
-    rm -rf $page.php html_data_page_$page.txt m3u8_title_page_$page.txt
-    download_sample $page_url $page.php
+    rm -rf html_data_page_$page.txt m3u8_title_page_$page.txt
+    if [ ! -e $page.php ]; then
+        download_sample $page_url $page.php
+    fi
     get_html_data_and_title_from_html_file "$protocol://$domain/$path" $page.php  html_data_page_$page.txt
     fetch_m3u8_url_and_title_from_html_data_file html_data_page_$page.txt m3u8_title_page_$page.txt
     cat m3u8_title_page_$page.txt >> ../m3u8_title.txt

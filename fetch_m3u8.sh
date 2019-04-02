@@ -86,6 +86,10 @@ if [ $# -ge 1 ]; then
     update_remote=1
 fi
 
+if [ $# -ge 2 ]; then
+    echo $2 > $title_file
+fi
+
 url=`cat $cache_url_file`
 
 protocol=`url_get_protocol $url`

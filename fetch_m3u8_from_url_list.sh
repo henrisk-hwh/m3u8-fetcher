@@ -16,15 +16,14 @@ fetch_target() {
 
     cd $dir
     if [ ! -e $cache_url_file ]; then
-        fetch_m3u8.sh $url
+        fetch_m3u8.sh $url "${title}"
     elif [ x`cat $cache_url_file` != x"$url" ]; then
-        fetch_m3u8.sh $url
+        fetch_m3u8.sh $url "${title}"
     elif [ ! -e $done_file ]; then
         fetch_m3u8.sh
     fi
     cd - > /dev/null
     if [ -e $dir/$done_file ]; then
-        echo $title > $title_file
         echo $PWD fetch $url successfully, done file exist!
         return 0
     elif [ -e $dir/$remote_file ]; then
@@ -62,7 +61,7 @@ find_target_by_index_and_fetch() {
         check_index_by_url $local_index $url
         if [ $? -eq 0 ]; then
             echo "Find $url in index($local_index), start to update..."
-            fetch_target $url $title $local_index
+            fetch_target $url "${title}" $local_index
             local ret=$?
             if [ $ret -eq 0 ]; then
                 ret=$local_index
@@ -100,16 +99,13 @@ create_target_by_index_and_fetch() {
     local remote_file=$remote$file
     local media_path=$base_path/${file%.*}
     local ret=$?
-    
+
     [ -d $media_path ] || mkdir $media_path
     
-    fetch_target $url $title $media_path
+    fetch_target $url "${title}" $media_path
     ret=$?
     if [ $ret -eq 0 ]; then
-        local index=`get_new_index`
-        ln -s $media_path $index
-        ret=$index
-        echo Create_target_by_index_and_fetch $url successfully, index: $index
+        echo Create_target_by_index_and_fetch $url successfully, title: $title
     fi
 
     return $ret
@@ -124,24 +120,20 @@ fi
 
 rm -rf $list_fetch_file
 
-base_path=media
+base_path=$base_dir
 mkdir -p $base_path
 
 while read line || [[ -n ${line} ]]
 do
     url=`echo $line | awk '{print $1}'`
-    title=${line#*$html_data}
+    title=${line#*$url}
     if [[ ! $url =~ "http" ]]; then
         continue
     fi
 
-    find_target_by_index_and_fetch $url $title
-    ret=$?
-    if [ $ret -eq 0 ]; then
-        echo fetch $url have not find index, try to create!
-        create_target_by_index_and_fetch $url $title $base_path
-        ret=$? #index
-    fi
+    echo fetch $url have not find index, try to create!
+    create_target_by_index_and_fetch $url "${title}" $base_path
+    ret=$? #index
 
     if [ $ret -eq $ERROR_FETCH_M3U8_URL_FAILED ]; then
         #fetch m3u8 url failed
