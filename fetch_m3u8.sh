@@ -80,6 +80,7 @@ log() {
     echo $1 >> $log_file
 }
 
+process_info='--/--'
 update_remote=0
 if [ $# -ge 1 ]; then
     echo $1 > $cache_url_file
@@ -88,6 +89,10 @@ fi
 
 if [ $# -ge 2 ]; then
     echo $2 > $title_file
+fi
+
+if [ $# -ge 3 ]; then
+    process_info=$3
 fi
 
 url=`cat $cache_url_file`
@@ -154,7 +159,7 @@ do
             let success_count++
         fi
         let cur_finish++
-        echo "[$cur_finish/$total_line]"'/***********************************************************************/'
+        echo "[$process_info][$cur_finish/$total_line]"'/***********************************************************************/'
     else
         echo $line >> $local_file
         echo $line >> $local_http_file

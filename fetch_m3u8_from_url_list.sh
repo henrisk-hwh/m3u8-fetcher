@@ -16,11 +16,12 @@ fetch_target() {
 
     cd $dir
     if [ ! -e $cache_url_file ]; then
-        fetch_m3u8.sh $url "${title}"
+        fetch_m3u8.sh $url "${title}" "urls: $URL_INDEX/$TOTAL_URL"
     elif [ x`cat $cache_url_file` != x"$url" ]; then
-        fetch_m3u8.sh $url "${title}"
+        fetch_m3u8.sh $url "${title}" "urls: $URL_INDEX/$TOTAL_URL"
     elif [ ! -e $done_file ]; then
-        fetch_m3u8.sh
+        fetch_m3u8.sh $url "${title}" "urls: $URL_INDEX/$TOTAL_URL"
+        #fetch_m3u8.sh
     fi
     cd - > /dev/null
     if [ -e $dir/$done_file ]; then
@@ -123,8 +124,14 @@ rm -rf $list_fetch_file
 base_path=$base_dir
 mkdir -p $base_path
 
+total_url=`cat $url_file | wc -l`
+export TOTAL_URL=$total_url
+
+declare -i url_index=1
+
 while read line || [[ -n ${line} ]]
 do
+    export URL_INDEX=$url_index
     url=`echo $line | awk '{print $1}'`
     title=${line#*$url}
     if [[ ! $url =~ "http" ]]; then
@@ -147,5 +154,6 @@ do
         echo $url $ret OK ---- local url: http://127.0.0.1/$ret/local.m3u8 >> $list_fetch_file
 
     fi
+    let url_index++
     echo "--------------------------------------------------------------------------------------------------------------"
 done < $url_file
