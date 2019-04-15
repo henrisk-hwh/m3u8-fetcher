@@ -102,6 +102,12 @@ get_html_data_and_title_from_html_file() {
     done
 }
 
+usage() {
+    echo "fetch_m3u8_url_and_title.sh url page_end"
+    echo "fetch_m3u8_url_and_title.sh url page_start page_end"
+    echo "fetch_m3u8_url_and_title.sh url page_start page_end refresh"
+}
+
 #1 url
 #2 page end
 url=$1

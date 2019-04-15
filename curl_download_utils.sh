@@ -1,3 +1,10 @@
+clean_file() {
+    #1 file
+    local file=$1
+    #dos2unix $file
+    sed -i 's///g' $file
+}
+
 download_http_header() {
     #1 url
     #2 base path
@@ -6,7 +13,7 @@ download_http_header() {
     local base_path=$2
     local header_file=$3
     curl -I $url > $base_path/$header_file
-    dos2unix $base_path/$header_file
+    clean_file $base_path/$header_file
     return $#
 }
 
@@ -33,7 +40,7 @@ download_http_data_and_header() {
         mkdir -p $target_header_path
         mv $data_file_name $target_path
         mv $header_file_name $target_header_path
-        dos2unix $target_header_path/$header_file_name
+        clean_file $target_header_path/$header_file_name
         return 0
     else
         rm -rf $data_file_name $header_file_name
@@ -62,11 +69,11 @@ check_data_by_header() {
     fi
 
     local target_data_file_length=`ls -l $target_data_file | awk '{print $5}'`
-    local target_header_file_content_length=`cat $target_header_file | grep -i "content-length" | awk '{print $2}'`
+    local target_header_file_content_length=`cat $target_header_file | grep -i "content-length" | awk '{printf $2}'`
     
-    echo "data-file-length:   " $target_data_file_length
-    echo "http content-length:" $target_header_file_content_length
-
+    echo -e "data-file-length:   " $target_data_file_length
+    echo -e "http content-length:" $target_header_file_content_length
+    
     if [ x"$target_data_file_length" = x"${target_header_file_content_length%$*}" ]; then
         echo Check by http content-length success!
         return 0
