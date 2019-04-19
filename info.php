@@ -17,7 +17,7 @@ function gettitle($mediapath) {
     return $title;
 }
 
-function getinfo($base_path) {
+function getinfo($base_path, $elem_hook) {
     $target_file = $base_path.LIST_FILE;
 
     $index = 1;
@@ -36,13 +36,55 @@ function getinfo($base_path) {
             $title = gettitle($meida_path);
             
             $http_url = "http://".$_SERVER["HTTP_HOST"]."/".$meida_file;
-            echo "[".$index."]   ".$http_url." ".$title."<br>";
+            //echo "[".$index."]   ".$http_url." ".$title."<br>";
+            elem_hook($index, $http_url, $title);
             $index++;
         }
         fclose($myfile);
     }
 }
+function elem_hook($index, $http_url, $title) {
+print <<<EOT
+    <button onclick="play('$http_url', '1111')"><h2>[$index]   $http_url $title</h2></button>
 
-getinfo(ASIA_PATH);
-getinfo(JPAN_PATH);
+EOT;
+}
+print <<<EOT
+
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <meta charset="UTF-8">
+        <title>ckplayer</title>
+        
+        <style type="text/css">
+            body {
+                margin: 0;
+                padding: 0px;
+                font-family: "Microsoft YaHei", YaHei, "微软雅黑", SimHei, "黑体";
+                font-size: 10px;
+            }
+            p{
+                padding-left: 2em;
+            }
+        </style>
+
+    </head>
+
+    <body>
+    <script>
+        function play(playerurl, title) {
+            var url = "./player.html?url=" + playerurl + ",title=" + title;
+            window.open(url, "__blank")
+        }
+    </script>
+EOT;
+getinfo(ASIA_PATH,"elem_hook");
+getinfo(JPAN_PATH,"elem_hook");
+print <<<EOT
+    </body>
+
+</html>
+EOT;
 ?>

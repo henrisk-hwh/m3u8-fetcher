@@ -1,0 +1,35 @@
+
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="UTF-8">
+		<title>ckplayer</title>
+		
+		<style type="text/css">
+			body {
+				margin: 0;
+				padding: 0px;
+				font-family: "Microsoft YaHei", YaHei, "微软雅黑", SimHei, "黑体";
+				font-size: 10px;
+			}
+			p{
+				padding-left: 2em;
+			}
+		</style>
+
+	</head>
+
+	<body>
+	<button onclick="play()"><h2>点击</h2></button>
+	<script>
+		var playerurl = 'http://192.168.1.103:8888/asia/media/nrCd0Pq7/local.m3u8';
+		var url = "./player.html?url=" + playerurl;
+		function play() {
+			window.open(url, "__blank")
+		}
+	</script>
+
+	</body>
+
+</html>
