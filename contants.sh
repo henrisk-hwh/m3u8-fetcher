@@ -8,7 +8,8 @@ local=local_
 cache_url_file=url.txt
 title_file=title.txt
 
-local_http_root=Videos
+local_http_root='db/db'
+local_http_port='8888'
 local_http_path="http://127.0.0.1"
 
 ERROR_FETCH_M3U8_URL_FAILED=200

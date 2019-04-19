@@ -74,6 +74,10 @@ check_m3u8_media() {
     return $?
 }
 
+get_ip_addr() {
+	ifconfig -a|grep inet|grep -v 127.0.0.1|grep -v inet6|awk '{print $2}'|tr -d "addr:" | grep 192
+}
+
 log() {
     #1 log text
     echo $1
@@ -87,8 +91,10 @@ if [ $# -ge 1 ]; then
     update_remote=1
 fi
 
+http_path=http://`get_ip_addr`:$local_http_port/${PWD##*$local_http_root\/}
 if [ $# -ge 2 ]; then
     echo $2 > $title_file
+	#echo " ------------->>> $http_path/$local_file" >> $title_file
 fi
 
 if [ $# -ge 3 ]; then
@@ -104,6 +110,7 @@ file=`url_get_file $url`
 
 remote_file=$remote$file
 local_http_file=$local$file
+
 
 local_path1=$local_http_path${PWD##*$local_http_root}
 
@@ -150,7 +157,7 @@ do
 		fi
         local_url=$media_dir/`url_get_path $download_url`/`url_get_file $download_url`
         echo $local_url >> $local_file
-        echo $local_path1/${local_url##*$domain} >> $local_http_file
+        echo $http_path/${local_url##*$domain} >> $local_http_file
         #download_full_path $download_url $media_dir
         download_full_path_and_check $download_url $media_dir
         if [ $? -ne 0 ]; then

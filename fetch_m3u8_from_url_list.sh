@@ -91,14 +91,11 @@ get_new_index() {
 create_target_by_index_and_fetch() {
     #1 url
     #2 title
-    #3 base_path
+    #3 media_path
 
     local url=$1
     local title=$2
-    local base_path=$3
-    local file=`url_get_file $url`
-    local remote_file=$remote$file
-    local media_path=$base_path/${file%.*}
+    local media_path=$3
     local ret=$?
 
     [ -d $media_path ] || mkdir $media_path
@@ -138,21 +135,22 @@ do
         continue
     fi
 
+    file=`url_get_file $url`
+    media_path=$base_path/${file%.*}
     echo fetch $url have not find index, try to create!
-    create_target_by_index_and_fetch $url "${title}" $base_path
+    create_target_by_index_and_fetch $url "${title}" $media_path
     ret=$? #index
 
     if [ $ret -eq $ERROR_FETCH_M3U8_URL_FAILED ]; then
         #fetch m3u8 url failed
         echo fetch m3u8 url failed
-        echo $url $ret failed, message:get M3U8 file failed >> $list_fetch_file 
+		echo fail $media_path "${title}" $url message: get M3U8 file failed >> $list_fetch_file
     elif [ $ret -eq $ERROR_FETCH_TS_ELEM_FAILED ]; then
         #fetch url success, buf fetch ts elem failed
         echo fetch url success, buf fetch ts elem failed
-        echo $url $ret failed, message: get some TS files failed >> $list_fetch_file 
+		echo fail $media_path "${title}" $url message: get some TS files failed >> $list_fetch_file
     else
-        echo $url $ret OK ---- local url: http://127.0.0.1/$ret/local.m3u8 >> $list_fetch_file
-
+		echo done $media_path "${title}" $url >> $list_fetch_file
     fi
     let url_index++
     echo "--------------------------------------------------------------------------------------------------------------"
