@@ -5,29 +5,32 @@
 		<meta charset="UTF-8">
 		<title>haha</title>
 		
-		<style type="text/css">body{margin:0;padding:0px;font-family:"Microsoft YaHei",YaHei,"微软雅黑",SimHei,"黑体";font-size:14px}</style>
+		<style type="text/css">body{margin:0;padding:0px;font-family:"Microsoft YaHei",YaHei,"微软雅黑",SimHei,"黑体";font-size:20px}</style>
 
 	</head>
 
 	<body>
-		<p>
-			<a href="http://www.ckplayer.com/" target="_blank">官网：http://www.ckplayer.com</a>,版本号：X</p>
-		<p>以下仅列出部分功能，全部功能请至官网
+		<a id="A" title="没有更改的title">改变title属性值</a><br>
 		<div id="video" style="width: 1200px; height: 800px;"></div>
-		<script type="text/javascript" src="./player/ckplayer/ckplayer.js"></script>
+		<script type="text/javascript" src="./ckplayer/ckplayer.js"></script>
 		<script type="text/javascript">
 			var url;
 			onload = function() {
-				var str = window.location.href
+				var str = window.location.href;
 				console.log('str: ', str);
-				var arrStr1 = window.location.href.split("=")
-				console.log('arrStr1: ', arrStr1);
-				var arrStr2 = arrStr1[1].split(",");
-				console.log('arrStr2: ', arrStr2);
+				var arrStr1 = window.location.href.split("url=");
+				var arrStr2 = arrStr1[1].split(",title=");
+				//console.log('arrStr1: ', arrStr1);
+				//console.log('arrStr2: ', arrStr2);
 				url = arrStr2[0];
-				title = arrStr1[2];
+				var title = decodeURI(arrStr2[1]);
+
 				console.log('url: ', url);
-				//$("#addtitle").val(title);
+				console.log('title: ', title);
+
+				var elementA = document.getElementById("A");
+				elementA.text = title;
+
 				var videoObject = {
 					container: '#video', //容器的ID或className
 					variable: 'player',//播放函数名称

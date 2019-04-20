@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="UTF-8">
+		<title>haha</title>
+		
+		<style type="text/css">body{margin:0;padding:0px;font-family:"Microsoft YaHei",YaHei,"微软雅黑",SimHei,"黑体";font-size:14px}</style>
+
+	</head>
+	
+	<script type="text/javascript">
+	/**
+	1.通过Dom对象的getElementById方法得到id="A" 的元素
+	2.获取没有更改的title值并弹窗
+	3.改变title的值
+	4.再次弹窗
+	*/
+	function changeTitle(){
+		var elementA = document.getElementById("A");
+		alert(elementA.title);
+		elementA.title="更改后的title";
+		elementA.text="aaaaaaa";
+		alert(elementA.title);
+	}
+	</script>
+	<!-- onclick 点击事件(触发changeTitle()函数)-->
+	<body>
+	<a id="A" title="没有更改的title" onclick="changeTitle()">点击我改变title属性值</a>
+	</body>
+
+</html>

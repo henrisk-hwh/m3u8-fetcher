@@ -32,12 +32,10 @@ print <<<EOT
 	<body>
 EOT;
 print <<<EOT
-	<button onclick="play()"><h2>点击</h2></button>
+	<button onclick="play('http://img.ksbbs.com/asset/Mon_1703/05cacb4e02f9d9e.mp4', ' [3 - 11] 张靓颖 阿文 大 k ')"><h2>点击</h2></button>
 	<script>
-		var playerurl = 'http://192.168.1.103:8888/asia/media/nrCd0Pq7/local.m3u8';
-		var url = "./player.html?url=" + playerurl;
-		function play() {
-			console.log('str: ', url);
+		function play(playerurl, title) {
+			var url = "./player.html?url=" + playerurl + ",title=" + title;
 			window.open(url, "__blank")
 		}
 	</script>
