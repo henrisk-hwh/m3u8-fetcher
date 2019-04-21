@@ -242,6 +242,7 @@ int main(int argc, char **argv)
     curl_multi_add_handle(multi_handle, trans[num_transfers].easy);
     
     num_transfers++;
+    if(num_transfers >= NUM_HANDLES) break;
   }
   fclose(fp);
 
