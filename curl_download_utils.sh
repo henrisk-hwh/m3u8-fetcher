@@ -74,14 +74,14 @@ check_data_by_header() {
     local target_data_file_length=`ls -l $target_data_file | awk '{print $5}'`
     local target_header_file_content_length=`cat $target_header_file | grep -i "content-length" | awk '{printf $2}'`
     
-    echo -e "data-file-length:   " $target_data_file_length
-    echo -e "http content-length:" $target_header_file_content_length
     
     if [ x"$target_data_file_length" = x"${target_header_file_content_length%$*}" ]; then
-        echo Check by http content-length success!
+        echo Check -- $target_data_file -- by http content-length success!
         return 0
     else
-        echo check by http content-length failed!
+        echo -e "data-file-length:   " $target_data_file_length
+        echo -e "http content-length:" $target_header_file_content_length
+        echo Check -- $target_data_file -- by http content-length failed!
         return 1
     fi
 }

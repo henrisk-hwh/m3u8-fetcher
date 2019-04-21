@@ -34,16 +34,19 @@ download_urlfile_by_http2() {
 download_ifneed() {
     #1 target urlfile
     #2 media_dir
+    #3 retry
     
     local urlfile=$1
     local media_dir=$2
+    local retry=$3
 
     local should_download="no"
     local local_file=""
     local target_dir=""
     
+    local tmp_url_file=$download_url_file.$retry
     #check frist
-    rm -rf $download_tmp_dir/$download_url_file
+    rm -rf $tmp_url_file
     while read line || [[ -n ${line} ]]
     do
         if [ ${line:0:1} != "#" ]; then
@@ -55,7 +58,7 @@ download_ifneed() {
             local_file=$media_dir/`url_get_path $download_url`/`url_get_file $download_url`
             check_data_by_header $local_file $local_file$header
             [ $? -eq 0 ] && continue
-            echo $download_url >> $download_tmp_dir/$download_url_file
+            echo $download_url >> $download_tmp_dir/$tmp_url_file
             should_download="yes"
         fi
     done  < $urlfile
@@ -63,7 +66,7 @@ download_ifneed() {
     #download if need
     if [ $should_download = "yes" ]; then
         cd $download_tmp_dir
-        download_urlfile_by_http2 $download_url_file
+        download_urlfile_by_http2 $tmp_url_file
         cd - > /dev/null
     else
         return 0
@@ -149,10 +152,10 @@ if [ $? -ne 0 ]; then
     exit $ERROR_FETCH_M3U8_URL_FAILED
 fi
 
-declare -i retry=1
+declare -i retry=0
 while [ $retry -le 3 ]; do
+    download_ifneed $remote_file $media_dir $retry
     let retry++
-    download_ifneed $remote_file $media_dir
 done
 
 download_url=""
@@ -162,7 +165,6 @@ total_line=`cat $remote_file | grep -v "#" | wc -l`
 declare -i cur_finish=0
 declare -i success_count=0
 
-exit 1
 while read line || [[ -n ${line} ]]
 do
 	if [ ${line:0:1} != "#" ]; then
@@ -172,15 +174,13 @@ do
             download_url=${url%\/*}/$line
 		fi
         local_url=$media_dir/`url_get_path $download_url`/`url_get_file $download_url`
-        echo $local_url >> $local_file
-        echo $http_path/${local_url##*$domain} >> $local_http_file
-        #download_full_path $download_url $media_dir
-        #download_full_path_and_check $download_url $media_dir
-        if [ $? -ne 0 ]; then
+        if [ ! -e $local_url ]; then
             log "Fetch $download_url failed!!!!"
         else
             let success_count++
         fi
+        echo $local_url >> $local_file
+        echo $http_path/${local_url##*$domain} >> $local_http_file
         let cur_finish++
         echo "[$process_info][$cur_finish/$total_line]"'/***********************************************************************/'
     else
@@ -188,6 +188,7 @@ do
         echo $line >> $local_http_file
 	fi
 done  < $remote_file
+
 if [ $success_count -eq $total_line ]; then
     touch $done_file
     exit 0

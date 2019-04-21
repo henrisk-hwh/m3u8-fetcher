@@ -41,7 +41,32 @@
    a recent libcurl header. */ 
 #define CURLPIPE_MULTIPLEX 0
 #endif
- 
+#include <execinfo.h>  
+#include <signal.h>  
+  
+void backtracedump(int signo)  
+{  
+    void *buffer[30] = {0};  
+    size_t size;  
+    char **strings = NULL;  
+    size_t i = 0;  
+                      
+    size = backtrace(buffer, 30);  
+    fprintf(stdout, "Obtained %zd stack frames.nm\n", size);  
+    strings = backtrace_symbols(buffer, size);  
+    if (strings == NULL) {  
+        perror("backtrace_symbols.");  
+        exit(EXIT_FAILURE);  
+    }  
+                                          
+    for (i = 0; i < size; i++) {  
+        fprintf(stdout, "%s\n", strings[i]);  
+    }  
+    free(strings);  
+    strings = NULL;  
+    exit(0);  
+} 
+
 struct transfer {
   CURL *easy;
   unsigned int num;
@@ -49,7 +74,7 @@ struct transfer {
   FILE *header;
 };
  
-#define NUM_HANDLES 1000
+#define NUM_HANDLES 450
  
 static
 void dump(const char *text, int num, unsigned char *ptr, size_t size,
@@ -152,11 +177,18 @@ static void setup(struct transfer *t, int num, const char *url, const char *outf
   
   t->num = num;
   t->out = fopen(outfilename, "wb");
- 
+  if (t->out == NULL) {
+    printf("open %s failed(%s)\n", outfilename, strerror(errno));
+    //exit(-1);
+  }
   snprintf(headerfilename, 128, "%s.header", outfilename);
  
   t->header = fopen(headerfilename, "wb");
-  
+  if (t->header == NULL) {
+    printf("open %s failed(%s)\n", outfilename, strerror(errno));
+    //exit(-1);
+  }
+
   /* write to this file */ 
   curl_easy_setopt(hnd, CURLOPT_WRITEDATA, t->out);
   curl_easy_setopt(hnd, CURLOPT_HEADERDATA, t->header); //将返回的html主体数据输出到fp指向的文件
@@ -208,6 +240,9 @@ int main(int argc, char **argv)
   const char *url_file;
   FILE *fp;
   char line[200];
+  
+  signal(SIGSEGV, backtracedump);
+
   if(argc >= 2) {
     /* if given a number, do that many transfers */ 
     url_file = argv[1];
@@ -325,8 +360,8 @@ int main(int argc, char **argv)
   for(i = 0; i < num_transfers; i++) {
     curl_multi_remove_handle(multi_handle, trans[i].easy);
     curl_easy_cleanup(trans[i].easy);
-    fclose(trans[i].out);
-    fclose(trans[i].header);
+    if(trans[i].out != NULL) fclose(trans[i].out);
+    if(trans[i].header != NULL) fclose(trans[i].header);
   }
  
   curl_multi_cleanup(multi_handle);

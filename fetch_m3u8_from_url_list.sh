@@ -16,11 +16,11 @@ fetch_target() {
 
     cd $dir
     if [ ! -e $cache_url_file ]; then
-        fetch_m3u8.sh $url "${title}" "urls: $URL_INDEX/$TOTAL_URL"
+        fetch_m3u8_by_http2.sh $url "${title}" "urls: $URL_INDEX/$TOTAL_URL"
     elif [ x`cat $cache_url_file` != x"$url" ]; then
-        fetch_m3u8.sh $url "${title}" "urls: $URL_INDEX/$TOTAL_URL"
+        fetch_m3u8_by_http2.sh $url "${title}" "urls: $URL_INDEX/$TOTAL_URL"
     elif [ ! -e $done_file ]; then
-        fetch_m3u8.sh $url "${title}" "urls: $URL_INDEX/$TOTAL_URL"
+        fetch_m3u8_by_http2.sh $url "${title}" "urls: $URL_INDEX/$TOTAL_URL"
         #fetch_m3u8.sh
     fi
     cd - > /dev/null
