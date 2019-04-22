@@ -27,7 +27,9 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
- 
+
+#include <sys/syscall.h>
+
 /* somewhat unix-specific */ 
 #include <sys/time.h>
 #include <unistd.h>
@@ -72,15 +74,42 @@ struct transfer {
   unsigned int num;
   FILE *out;
   FILE *header;
+  char url[100];
+  int finish;
 };
  
 #define NUM_HANDLES 450
+
+static
+int progress_callback(void *clientp, double dltotal, double dlnow, double ultotal, double ulnow)
+{
+    struct transfer *t = (struct transfer *)clientp;
+    
+    if(dltotal == 0) return 0;
+    if(t->finish == 1) return 0;
+    
+    int nPersent = (int)(100.0*dlnow/dltotal);
+    printf("\r[%d] %d->%s %ld, finish: %d, dltotal[%03lf] dlnow[%03lf]", nPersent, t->num, t->url, syscall(SYS_gettid), t->finish, dltotal, dlnow);
+    fflush(stdout);
+    if(dltotal == dlnow) {
+        t->finish = 1;
+        printf("\n");
+    }
+
+	if(dltotal < 0)
+	{
+	   printf("\n dltotal[%03lf] dlnow[%03lf] ultotal[%03lf] ulnow[%03lf]",dltotal,dlnow,ultotal,ulnow);
+		int nPersent = (int)(100.0*dlnow/dltotal);
+	    printf("\n persent[%d]",nPersent);
+	}	
+	return 0;
+	
+}
  
 static
 void dump(const char *text, int num, unsigned char *ptr, size_t size,
           char nohex)
 {
-    return;
   size_t i;
   size_t c;
  
@@ -136,7 +165,10 @@ int my_trace(CURL *handle, curl_infotype type,
   struct transfer *t = (struct transfer *)userp;
   unsigned int num = t->num;
   (void)handle; /* prevent compiler warning */ 
- 
+  
+  long downloadFileLenth = 0;
+  curl_easy_getinfo(handle, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &downloadFileLenth);
+  printf("downloadFileLenth: %ld\n", downloadFileLenth);
   switch(type) {
   case CURLINFO_TEXT:
     fprintf(stderr, "== %d Info: %s", num, data);
@@ -175,7 +207,9 @@ static void setup(struct transfer *t, int num, const char *url, const char *outf
  
   hnd = t->easy = curl_easy_init();
   
+  strncpy(t->url, url, sizeof(t->url));
   t->num = num;
+  t->finish = 0;
   t->out = fopen(outfilename, "wb");
   if (t->out == NULL) {
     printf("open %s failed(%s)\n", outfilename, strerror(errno));
@@ -197,10 +231,13 @@ static void setup(struct transfer *t, int num, const char *url, const char *outf
   curl_easy_setopt(hnd, CURLOPT_URL, url);
  
   /* please be verbose */ 
-  curl_easy_setopt(hnd, CURLOPT_VERBOSE, 1L);
+  curl_easy_setopt(hnd, CURLOPT_VERBOSE, 0L);
   curl_easy_setopt(hnd, CURLOPT_DEBUGFUNCTION, my_trace);
   curl_easy_setopt(hnd, CURLOPT_DEBUGDATA, t);
- 
+
+  curl_easy_setopt(hnd, CURLOPT_PROGRESSFUNCTION, progress_callback); 
+  curl_easy_setopt(hnd, CURLOPT_PROGRESSDATA, t);
+  curl_easy_setopt(hnd, CURLOPT_NOPROGRESS, 0L);
   /* HTTP/2 please */ 
   curl_easy_setopt(hnd, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
  

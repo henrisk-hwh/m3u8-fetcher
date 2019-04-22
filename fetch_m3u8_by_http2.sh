@@ -28,17 +28,20 @@ download_urlfile_by_http2() {
     #1 url file
 
     local url_file=$1
-    http2download_from_urlfile $url_file > /dev/null
+    http2download_from_urlfile $url_file
+    #http2download_from_urlfile $url_file &> /dev/null
 }
 
 download_ifneed() {
     #1 target urlfile
     #2 media_dir
     #3 retry
+    #4 failed file
     
     local urlfile=$1
     local media_dir=$2
     local retry=$3
+    local failed_file=$4
 
     local should_download="no"
     local local_file=""
@@ -46,7 +49,7 @@ download_ifneed() {
     
     local tmp_url_file=$download_url_file.$retry
     #check frist
-    rm -rf $tmp_url_file
+    rm -rf $download_tmp_dir/$tmp_url_file
     while read line || [[ -n ${line} ]]
     do
         if [ ${line:0:1} != "#" ]; then
@@ -67,12 +70,14 @@ download_ifneed() {
     if [ $should_download = "yes" ]; then
         cd $download_tmp_dir
         download_urlfile_by_http2 $tmp_url_file
+        clean_file *$header
         cd - > /dev/null
     else
         return 0
     fi
 
     #copy to dir
+    should_download="no"
     while read line || [[ -n ${line} ]]
     do
         if [ ${line:0:1} != "#" ]; then
@@ -82,15 +87,23 @@ download_ifneed() {
                 download_url=${url%\/*}/$line
             fi
             local_file=$download_tmp_dir/`url_get_file $download_url`
-            check_data_by_header $local_file $local_file$header
+            check_data_by_header $local_file $local_file$header > /dev/null
             if [ $? -eq 0 ]; then
                 target_dir=$media_dir/`url_get_path $download_url`
                 mkdir -p $target_dir
                 mv $local_file $local_file$header $target_dir
+            else
+                echo $download_url >> $failed_file
+                should_download="yes"
             fi
         fi
-    done  < $urlfile
+    done  < $download_tmp_dir/$tmp_url_file
 
+    if [ $should_download = "yes" ]; then
+        return 1
+    else
+        return 0
+    fi
 }
 
 process_info='--/--'
@@ -152,9 +165,11 @@ if [ $? -ne 0 ]; then
     exit $ERROR_FETCH_M3U8_URL_FAILED
 fi
 
+failed_file=tmp/failed_file
 declare -i retry=0
 while [ $retry -le 3 ]; do
-    download_ifneed $remote_file $media_dir $retry
+    download_ifneed $remote_file $media_dir $retry $failed_file
+    [ $? -eq 0 ] && break
     let retry++
 done
 

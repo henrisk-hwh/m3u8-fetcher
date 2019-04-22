@@ -62,8 +62,6 @@ check_data_by_header() {
     [ -e $target_data_file ] || return 1
     [ -e $target_header_file ] || return 2
 
-    clean_file $target_header_file
-
     local http_code=`cat $target_header_file | grep -i http | awk '{print $2}'`
     http_code=${http_code%\n*}
     if [ x"$http_code" != "x200" ]; then
