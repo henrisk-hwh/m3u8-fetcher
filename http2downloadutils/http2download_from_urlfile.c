@@ -69,16 +69,46 @@ void backtracedump(int signo)
     exit(0);  
 } 
 
+struct transfers_info {
+  int total_request;
+  int cur_finish;
+};
+
 struct transfer {
   CURL *easy;
   unsigned int num;
   FILE *out;
   FILE *header;
   char url[100];
+  char data_file[100];
+  char header_file[100];
   int finish;
+  int header_writed;
+  struct transfers_info *info;
 };
  
 #define NUM_HANDLES 450
+
+static
+size_t header_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
+    struct transfer *t = (struct transfer *)userdata;
+    size_t bytes;
+    if(t->header_writed == 0)
+        t->header = fopen(t->header_file, "wb+");
+    else
+        t->header = fopen(t->header_file, "ab+");
+
+    if (t->header == NULL) {
+        printf("open %s failed(%s)\n", t->header_file, strerror(errno));
+        exit(-1);
+    }
+
+    t->header_writed = 1;
+    bytes = fwrite(ptr, size, nmemb, t->header);
+    fclose(t->header);
+    t->header = NULL;
+    return bytes;
+}
 
 static
 int progress_callback(void *clientp, double dltotal, double dlnow, double ultotal, double ulnow)
@@ -89,10 +119,11 @@ int progress_callback(void *clientp, double dltotal, double dlnow, double ultota
     if(t->finish == 1) return 0;
     
     int nPersent = (int)(100.0*dlnow/dltotal);
-    printf("\r[%d] %d->%s %ld, finish: %d, dltotal[%03lf] dlnow[%03lf]", nPersent, t->num, t->url, syscall(SYS_gettid), t->finish, dltotal, dlnow);
+    printf("\r[%d/%d][%d] %d->%s dltotal[%03lf] dlnow[%03lf]", t->info->cur_finish, t->info->total_request, nPersent, t->num, t->url, dltotal, dlnow);
     fflush(stdout);
     if(dltotal == dlnow) {
         t->finish = 1;
+        t->info->cur_finish++;
         printf("\n");
     }
 
@@ -210,22 +241,29 @@ static void setup(struct transfer *t, int num, const char *url, const char *outf
   strncpy(t->url, url, sizeof(t->url));
   t->num = num;
   t->finish = 0;
+  t->header_writed = 0;
   t->out = fopen(outfilename, "wb");
   if (t->out == NULL) {
     printf("open %s failed(%s)\n", outfilename, strerror(errno));
     //exit(-1);
   }
   snprintf(headerfilename, 128, "%s.header", outfilename);
- 
+/*
   t->header = fopen(headerfilename, "wb");
   if (t->header == NULL) {
     printf("open %s failed(%s)\n", outfilename, strerror(errno));
     //exit(-1);
   }
+*/
+  strncpy(t->data_file, outfilename, sizeof(t->data_file));
+  strncpy(t->header_file, headerfilename, sizeof(t->header_file));
 
   /* write to this file */ 
   curl_easy_setopt(hnd, CURLOPT_WRITEDATA, t->out);
-  curl_easy_setopt(hnd, CURLOPT_HEADERDATA, t->header); //将返回的html主体数据输出到fp指向的文件
+  //curl_easy_setopt(hnd, CURLOPT_HEADERDATA, t->header); //将返回的html主体数据输出到fp指向的文件
+  curl_easy_setopt(hnd, CURLOPT_HEADERFUNCTION, header_callback);
+  curl_easy_setopt(hnd, CURLOPT_HEADERDATA, t);
+
   
   /* set the same URL */ 
   curl_easy_setopt(hnd, CURLOPT_URL, url);
@@ -269,10 +307,12 @@ int get_filename_from_url(const char *url, char *filename) {
  */ 
 int main(int argc, char **argv)
 {
+  struct transfers_info info;
   struct transfer trans[NUM_HANDLES];
   CURLM *multi_handle;
   int i;
   int still_running = 0; /* keep number of running handles */ 
+  int max_transfers = NUM_HANDLES;
   int num_transfers = 0;
   const char *url_file;
   FILE *fp;
@@ -280,10 +320,13 @@ int main(int argc, char **argv)
   
   signal(SIGSEGV, backtracedump);
 
-  if(argc >= 2) {
+  if(argc == 2) {
     /* if given a number, do that many transfers */ 
     url_file = argv[1];
-  } else {
+  } else if(argc == 3) {
+    url_file = argv[1];
+    max_transfers = atoi(argv[2]);
+  }else {
     exit(-1);
   }
     
@@ -308,15 +351,20 @@ int main(int argc, char **argv)
     }
     get_filename_from_url(line, filename);
     setup(&trans[num_transfers], num_transfers, line, filename);
+    trans[num_transfers].info = &info;
+
     printf("%d, url: %s, file %s\n", num_transfers, line, filename);
 
     /* add the individual transfer */ 
     curl_multi_add_handle(multi_handle, trans[num_transfers].easy);
     
     num_transfers++;
-    if(num_transfers >= NUM_HANDLES) break;
+    if(num_transfers >= max_transfers) break;
   }
   fclose(fp);
+
+  info.total_request = num_transfers;
+  info.cur_finish = 0;
 
   curl_multi_setopt(multi_handle, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
  
