@@ -254,7 +254,7 @@ static void setup(struct transfer *t, int num, const char *url, const char *outf
 {
   char headerfilename[128];
   CURL *hnd;
- 
+  memset(headerfilename, 0, 128);
   hnd = t->easy = curl_easy_init();
   
   strncpy(t->url, url, sizeof(t->url));
@@ -276,6 +276,8 @@ static void setup(struct transfer *t, int num, const char *url, const char *outf
     //exit(-1);
   }
 */
+  memset(t->data_file, 0, sizeof(t->data_file));
+  memset(t->header_file, 0, sizeof(t->header_file));
   strncpy(t->data_file, outfilename, sizeof(t->data_file));
   strncpy(t->header_file, headerfilename, sizeof(t->header_file));
 
@@ -342,6 +344,10 @@ int main(int argc, char **argv)
   char line[200];
   int opt = 0; 
   int verbose = 0;
+  int timeout_set = 10;
+  int timeout_step = 0;
+  int timeout_count = 0;
+  int timeout_update = 0;
   signal(SIGSEGV, backtracedump);
 
   while((opt = getopt(argc, argv,"f:n:v")) != -1) {
@@ -386,6 +392,7 @@ int main(int argc, char **argv)
         }
         i++;
     }
+    memset(filename, 0, sizeof(filename));
     get_filename_from_url(line, filename);
     setup(&trans[num_transfers], num_transfers, line, filename, verbose);
     trans[num_transfers].info = &info;
@@ -436,7 +443,8 @@ int main(int argc, char **argv)
       else
         timeout.tv_usec = (curl_timeo % 1000) * 1000;
     }
- 
+    timeout_step = timeout.tv_sec;
+
     /* get file descriptors from the transfers */ 
     mc = curl_multi_fdset(multi_handle, &fdread, &fdwrite, &fdexcep, &maxfd);
  
@@ -472,10 +480,19 @@ int main(int argc, char **argv)
       /* select error */ 
       break;
     case 0:
+      timeout_count += timeout_step;
+      //printf("\nselect timeout %d(s)\n", timeout_count);
+      timeout_update = 1;
     default:
+      if(timeout_update == 0) timeout_count = 0;
+      timeout_update = 0;
       /* timeout or readable/writable sockets */ 
       curl_multi_perform(multi_handle, &still_running);
       break;
+    }
+    if(timeout_count >= timeout_set) {
+        printf("\nTimeout %d sec, exit!\n", timeout_count);
+        break;
     }
   }
  
