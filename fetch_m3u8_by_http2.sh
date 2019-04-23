@@ -28,7 +28,7 @@ download_urlfile_by_http2() {
     #1 url file
 
     local url_file=$1
-    http2download_from_urlfile $url_file
+    http2download_from_urlfile -f $url_file
     #http2download_from_urlfile $url_file &> /dev/null
 }
 
@@ -70,7 +70,6 @@ download_ifneed() {
     if [ $should_download = "yes" ]; then
         cd $download_tmp_dir
         download_urlfile_by_http2 $tmp_url_file
-        clean_file *$header
         cd - > /dev/null
     else
         return 0
@@ -87,7 +86,8 @@ download_ifneed() {
                 download_url=${url%\/*}/$line
             fi
             local_file=$download_tmp_dir/`url_get_file $download_url`
-            check_data_by_header $local_file $local_file$header > /dev/null
+            [ -f $local_file$header ] && clean_file $local_file$header
+            check_data_by_header $local_file $local_file$header
             if [ $? -eq 0 ]; then
                 target_dir=$media_dir/`url_get_path $download_url`
                 mkdir -p $target_dir
@@ -109,6 +109,7 @@ download_ifneed() {
 process_info='--/--'
 update_remote=0
 if [ $# -ge 1 ]; then
+    echo $cache_url_file
     echo $1 > $cache_url_file
     update_remote=1
 fi
@@ -137,7 +138,9 @@ download_tmp_dir=./tmp
 download_url_file=tmp_url
 local_path1=$local_http_path${PWD##*$local_http_root}
 
+rm -rf $download_tmp_dir
 mkdir -p $download_tmp_dir
+
 mkdir -p $media_dir
 
 rm -rf $log_file
@@ -165,12 +168,17 @@ if [ $? -ne 0 ]; then
     exit $ERROR_FETCH_M3U8_URL_FAILED
 fi
 
-failed_file=tmp/failed_file
+target_url_file=$remote_file
+failed_file=$download_tmp_dir/failed_file
 declare -i retry=0
 while [ $retry -le 3 ]; do
-    download_ifneed $remote_file $media_dir $retry $failed_file
+    failed_file_retry=$failed_file.$retry
+    download_ifneed $target_url_file $media_dir $retry $failed_file_retry
     [ $? -eq 0 ] && break
+    target_url_file=$failed_file_retry
+    echo target_url_file $target_url_file
     let retry++
+    echo "rerty --- $retry, `cat $target_url_file | wc -l` elem left!"
 done
 
 download_url=""

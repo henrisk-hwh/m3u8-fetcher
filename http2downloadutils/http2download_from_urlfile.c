@@ -33,7 +33,8 @@
 /* somewhat unix-specific */ 
 #include <sys/time.h>
 #include <unistd.h>
- 
+#include <getopt.h>
+
 /* curl stuff */ 
 #include <curl/curl.h>
  
@@ -84,6 +85,7 @@ struct transfer {
   char header_file[100];
   int finish;
   int header_writed;
+  int data_writed;
   struct transfers_info *info;
 };
  
@@ -111,6 +113,26 @@ size_t header_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
 }
 
 static
+size_t data_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
+    struct transfer *t = (struct transfer *)userdata;
+    size_t bytes;
+    if(t->data_writed == 0)
+        t->out = fopen(t->data_file, "wb+");
+    else
+        t->out = fopen(t->data_file, "ab+");
+
+    if (t->out == NULL) {
+        printf("open %s failed(%s)\n", t->data_file, strerror(errno));
+        exit(-1);
+    }
+
+    t->data_writed = 1;
+    bytes = fwrite(ptr, size, nmemb, t->out);
+    fclose(t->out);
+    t->out = NULL;
+    return bytes;
+}
+static
 int progress_callback(void *clientp, double dltotal, double dlnow, double ultotal, double ulnow)
 {
     struct transfer *t = (struct transfer *)clientp;
@@ -119,7 +141,7 @@ int progress_callback(void *clientp, double dltotal, double dlnow, double ultota
     if(t->finish == 1) return 0;
     
     int nPersent = (int)(100.0*dlnow/dltotal);
-    printf("\r[%d/%d][%d] %d->%s dltotal[%03lf] dlnow[%03lf]", t->info->cur_finish, t->info->total_request, nPersent, t->num, t->url, dltotal, dlnow);
+    printf("\r[%d/%d][%d] %d->%s dltotal[%03lf] dlnow[%03lf]", t->info->cur_finish + 1, t->info->total_request, nPersent, t->num, t->url, dltotal, dlnow);
     fflush(stdout);
     if(dltotal == dlnow) {
         t->finish = 1;
@@ -127,14 +149,14 @@ int progress_callback(void *clientp, double dltotal, double dlnow, double ultota
         printf("\n");
     }
 
-	if(dltotal < 0)
-	{
-	   printf("\n dltotal[%03lf] dlnow[%03lf] ultotal[%03lf] ulnow[%03lf]",dltotal,dlnow,ultotal,ulnow);
-		int nPersent = (int)(100.0*dlnow/dltotal);
-	    printf("\n persent[%d]",nPersent);
-	}	
-	return 0;
-	
+    if(dltotal < 0)
+    {
+       printf("\n dltotal[%03lf] dlnow[%03lf] ultotal[%03lf] ulnow[%03lf]",dltotal,dlnow,ultotal,ulnow);
+        int nPersent = (int)(100.0*dlnow/dltotal);
+        printf("\n persent[%d]",nPersent);
+    }   
+    return 0;
+    
 }
  
 static
@@ -197,9 +219,6 @@ int my_trace(CURL *handle, curl_infotype type,
   unsigned int num = t->num;
   (void)handle; /* prevent compiler warning */ 
   
-  long downloadFileLenth = 0;
-  curl_easy_getinfo(handle, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &downloadFileLenth);
-  printf("downloadFileLenth: %ld\n", downloadFileLenth);
   switch(type) {
   case CURLINFO_TEXT:
     fprintf(stderr, "== %d Info: %s", num, data);
@@ -231,7 +250,7 @@ int my_trace(CURL *handle, curl_infotype type,
   return 0;
 }
  
-static void setup(struct transfer *t, int num, const char *url, const char *outfilename)
+static void setup(struct transfer *t, int num, const char *url, const char *outfilename, int verbose)
 {
   char headerfilename[128];
   CURL *hnd;
@@ -242,13 +261,15 @@ static void setup(struct transfer *t, int num, const char *url, const char *outf
   t->num = num;
   t->finish = 0;
   t->header_writed = 0;
+  t->data_writed = 0;
+  
+  snprintf(headerfilename, 128, "%s.header", outfilename);
+/*
   t->out = fopen(outfilename, "wb");
   if (t->out == NULL) {
     printf("open %s failed(%s)\n", outfilename, strerror(errno));
     //exit(-1);
   }
-  snprintf(headerfilename, 128, "%s.header", outfilename);
-/*
   t->header = fopen(headerfilename, "wb");
   if (t->header == NULL) {
     printf("open %s failed(%s)\n", outfilename, strerror(errno));
@@ -259,17 +280,19 @@ static void setup(struct transfer *t, int num, const char *url, const char *outf
   strncpy(t->header_file, headerfilename, sizeof(t->header_file));
 
   /* write to this file */ 
-  curl_easy_setopt(hnd, CURLOPT_WRITEDATA, t->out);
+  //curl_easy_setopt(hnd, CURLOPT_WRITEDATA, t->out);
   //curl_easy_setopt(hnd, CURLOPT_HEADERDATA, t->header); //将返回的html主体数据输出到fp指向的文件
   curl_easy_setopt(hnd, CURLOPT_HEADERFUNCTION, header_callback);
   curl_easy_setopt(hnd, CURLOPT_HEADERDATA, t);
 
+  curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, data_callback);
+  curl_easy_setopt(hnd, CURLOPT_WRITEDATA, t);
   
   /* set the same URL */ 
   curl_easy_setopt(hnd, CURLOPT_URL, url);
  
   /* please be verbose */ 
-  curl_easy_setopt(hnd, CURLOPT_VERBOSE, 0L);
+  curl_easy_setopt(hnd, CURLOPT_VERBOSE, verbose);
   curl_easy_setopt(hnd, CURLOPT_DEBUGFUNCTION, my_trace);
   curl_easy_setopt(hnd, CURLOPT_DEBUGDATA, t);
 
@@ -314,22 +337,36 @@ int main(int argc, char **argv)
   int still_running = 0; /* keep number of running handles */ 
   int max_transfers = NUM_HANDLES;
   int num_transfers = 0;
-  const char *url_file;
+  const char *url_file = NULL;
   FILE *fp;
   char line[200];
-  
+  int opt = 0; 
+  int verbose = 0;
   signal(SIGSEGV, backtracedump);
 
-  if(argc == 2) {
-    /* if given a number, do that many transfers */ 
-    url_file = argv[1];
-  } else if(argc == 3) {
-    url_file = argv[1];
-    max_transfers = atoi(argv[2]);
-  }else {
-    exit(-1);
+  while((opt = getopt(argc, argv,"f:n:v")) != -1) {
+    //optarg is global
+    switch(opt) {
+    case 'n':
+        max_transfers = atoi(optarg);
+        printf("The max_transfers is %d\n", max_transfers);
+        break;
+    case 'f':
+        url_file = optarg;
+        printf("The url file is %s\n",optarg);
+        break;
+    case 'v':
+        verbose = 1;
+        break;
+    break;
+    default:
+        //非法参数处理，也可以使用case来处理，？表示无效的选项，：表示选项缺少参数
+        exit(1);
+    }
   }
-    
+
+  if(url_file == NULL) exit(-1);
+
   /* init a multi stack */ 
   multi_handle = curl_multi_init();
   
@@ -350,7 +387,7 @@ int main(int argc, char **argv)
         i++;
     }
     get_filename_from_url(line, filename);
-    setup(&trans[num_transfers], num_transfers, line, filename);
+    setup(&trans[num_transfers], num_transfers, line, filename, verbose);
     trans[num_transfers].info = &info;
 
     printf("%d, url: %s, file %s\n", num_transfers, line, filename);
@@ -445,7 +482,10 @@ int main(int argc, char **argv)
   for(i = 0; i < num_transfers; i++) {
     curl_multi_remove_handle(multi_handle, trans[i].easy);
     curl_easy_cleanup(trans[i].easy);
-    if(trans[i].out != NULL) fclose(trans[i].out);
+    if(trans[i].out != NULL) {
+        fflush(trans[i].out);
+        fclose(trans[i].out);
+    }
     if(trans[i].header != NULL) fclose(trans[i].header);
   }
  
