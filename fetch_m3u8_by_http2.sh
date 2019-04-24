@@ -171,7 +171,7 @@ fi
 target_url_file=$remote_file
 failed_file=$download_tmp_dir/failed_file
 declare -i retry=0
-while [ $retry -le 3 ]; do
+while [ $retry -le 50 ]; do
     failed_file_retry=$failed_file.$retry
     download_ifneed $target_url_file $media_dir $retry $failed_file_retry
     [ $? -eq 0 ] && break
