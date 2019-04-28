@@ -1,6 +1,6 @@
 all: clean http2downloadutils http2download_from_urlfile progressfunc  install
 http2downloadutils:
-	gcc http2download.c -lcurl -o $@
+	gcc http2-download.c -lcurl -o $@
 
 http2download_from_urlfile:
 	gcc -g http2download_from_urlfile.c -lcurl -o $@
@@ -8,7 +8,7 @@ http2download_from_urlfile:
 progressfunc:
 	gcc -g progressfunc.c -lcurl -o $@
 clean:
-	rm -rf out* http2downloadutils http2download_from_urlfile progressfunc
+	rm -rf out* dl* http2downloadutils http2download_from_urlfile progressfunc
 
 install:
 	cp http2download_from_urlfile ../

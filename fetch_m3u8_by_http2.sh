@@ -28,7 +28,7 @@ download_urlfile_by_http2() {
     #1 url file
 
     local url_file=$1
-    http2download_from_urlfile -f $url_file
+    http2download_from_urlfile -f $url_file -n 50
     #http2download_from_urlfile $url_file &> /dev/null
 }
 
