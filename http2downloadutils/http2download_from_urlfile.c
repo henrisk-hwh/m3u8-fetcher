@@ -86,6 +86,7 @@ struct transfer {
   int finish;
   int header_writed;
   int data_writed;
+  int have_cookies;
   struct transfers_info *info;
 };
  
@@ -116,7 +117,7 @@ static
 size_t data_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
     struct transfer *t = (struct transfer *)userdata;
     size_t bytes;
-    if(t->data_writed == 0)
+    if(t->data_writed == 0 && t->have_cookies == 0)
         t->out = fopen(t->data_file, "wb+");
     else
         t->out = fopen(t->data_file, "ab+");
@@ -158,7 +159,22 @@ int progress_callback(void *clientp, double dltotal, double dlnow, double ultota
     return 0;
     
 }
- 
+
+static int check_and_get_file_cookies(const char *filename) {
+    FILE *fp = NULL;
+    if(access(filename, F_OK) != 0) return 0;
+
+    fp = fopen(filename, "rb");
+    if(fp == NULL) return 0;
+
+    fseek(fp, 0, SEEK_END); //定位到文件末
+    int nFileLen = ftell(fp); //文件长度
+
+    fclose(fp);
+
+    return nFileLen;
+}
+
 static
 void dump(const char *text, int num, unsigned char *ptr, size_t size,
           char nohex)
@@ -290,6 +306,20 @@ static void setup(struct transfer *t, int num, const char *url, const char *outf
   curl_easy_setopt(hnd, CURLOPT_WRITEFUNCTION, data_callback);
   curl_easy_setopt(hnd, CURLOPT_WRITEDATA, t);
   
+  printf("%d, url: %s, file %s", num, url, outfilename);
+
+  t->have_cookies = 0;
+  int cookies = check_and_get_file_cookies(outfilename);
+  if(cookies > 0) {
+    char range[20];
+    snprintf(range, sizeof(range), "%d-", cookies);
+    curl_easy_setopt(hnd, CURLOPT_RANGE, range);
+    t->have_cookies = 1;
+    printf(", cookies: %d", cookies);
+  }
+
+  printf("\n");
+
   /* set the same URL */ 
   curl_easy_setopt(hnd, CURLOPT_URL, url);
  
@@ -350,7 +380,7 @@ int main(int argc, char **argv)
   int timeout_update = 0;
   signal(SIGSEGV, backtracedump);
 
-  while((opt = getopt(argc, argv,"f:n:v")) != -1) {
+  while((opt = getopt(argc, argv,"f:n:t:v")) != -1) {
     //optarg is global
     switch(opt) {
     case 'n':
@@ -359,7 +389,11 @@ int main(int argc, char **argv)
         break;
     case 'f':
         url_file = optarg;
-        printf("The url file is %s\n",optarg);
+        printf("The url file is %s\n", optarg);
+        break;
+    case 't':
+        timeout_set = atoi(optarg);
+        printf("The setting timeout is %d\n", timeout_set);
         break;
     case 'v':
         verbose = 1;
@@ -397,7 +431,6 @@ int main(int argc, char **argv)
     setup(&trans[num_transfers], num_transfers, line, filename, verbose);
     trans[num_transfers].info = &info;
 
-    printf("%d, url: %s, file %s\n", num_transfers, line, filename);
 
     /* add the individual transfer */ 
     curl_multi_add_handle(multi_handle, trans[num_transfers].easy);
