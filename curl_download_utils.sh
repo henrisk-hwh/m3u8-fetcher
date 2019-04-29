@@ -59,28 +59,37 @@ check_data_by_header() {
     local target_header_file=$2
 
     #echo check $target_data_file $target_header_file
-    [ -e $target_data_file ] || return 1
-    [ -e $target_header_file ] || return 2
+    [ -e $target_data_file ] || return $ERROR_CHECK_DATA_NO_DATAFILE
+    [ -e $target_header_file ] || return $ERROR_CHECK_DATA_NO_HEADERFILE
 
     local http_code=`cat $target_header_file | grep -i http | awk '{print $2}'`
     http_code=${http_code%\n*}
-    if [ x"$http_code" != "x200" ]; then
+
+    #http 200 成功处理了请求
+    #http 206 继续请求一个未完成的下载
+    if [ x"$http_code" != "x200" ] && [ x"$http_code" != "x206" ]; then
         echo "Check http code($http_code) failed, header file: $target_header_file"
-        return 1
+        return $ERROR_CHECK_DATA_HTTP_CODE_FAILED
     fi
 
     local target_data_file_length=`ls -l $target_data_file | awk '{print $5}'`
-    local target_header_file_content_length=`cat $target_header_file | grep -i "content-length" | awk '{printf $2}'`
+    local target_header_file_content_length=""
+    if [ x"$http_code" = "x200" ]; then
+        target_header_file_content_length=`cat $target_header_file | grep -i "content-length" | awk '{printf $2}'`
+    elif [ x"$http_code" = "x206" ]; then
+        target_header_file_content_length=`cat $target_header_file | grep -i "content-range"`
+        target_header_file_content_length=${target_header_file_content_length#*\/}
+    fi
     
     
     if [ x"$target_data_file_length" = x"${target_header_file_content_length%$*}" ]; then
-        echo Check -- $target_data_file -- by http content-length success!
+        echo "Check -- $target_data_file -- by http($http_code) content-length success!"
         return 0
     else
-        echo -e "data-file-length:   " $target_data_file_length
-        echo -e "http content-length:" $target_header_file_content_length
+        echo "data-file-length:   " $target_data_file_length
+        echo "http content-length:" $target_header_file_content_length $http_code
         echo Check -- $target_data_file -- by http content-length failed!
-        return 1
+        return $ERROR_CHECK_DATA_LENGHT_FAILED
     fi
 }
 
@@ -109,7 +118,7 @@ download_full_path_and_check() {
         if [ $ret -eq 0 ]; then
             echo $url download and check sucessfully!
             return 0
-        elif [ $ret -eq 2 ]; then
+        elif [ $ret -eq $ERROR_CHECK_DATA_NO_HEADERFILE ]; then
             echo "download $url header only to check the exist file: $data_file_full"
             download_http_header $url $dst/$url_path $header_file
         else

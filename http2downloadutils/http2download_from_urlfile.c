@@ -142,7 +142,7 @@ int progress_callback(void *clientp, double dltotal, double dlnow, double ultota
     if(t->finish == 1) return 0;
     
     int nPersent = (int)(100.0*dlnow/dltotal);
-    printf("\r[%d/%d][%d] %d->%s dltotal[%03lf] dlnow[%03lf]", t->info->cur_finish + 1, t->info->total_request, nPersent, t->num, t->url, dltotal, dlnow);
+    printf("\r[%d/%d][%d] %d->%s dltotal[%03lf] dlnow[%03lf], cookies: %d", t->info->cur_finish + 1, t->info->total_request, nPersent, t->num, t->url, dltotal, dlnow, t->have_cookies);
     fflush(stdout);
     if(dltotal == dlnow) {
         t->finish = 1;
@@ -314,7 +314,7 @@ static void setup(struct transfer *t, int num, const char *url, const char *outf
     char range[20];
     snprintf(range, sizeof(range), "%d-", cookies);
     curl_easy_setopt(hnd, CURLOPT_RANGE, range);
-    t->have_cookies = 1;
+    t->have_cookies = cookies;
     printf(", cookies: %d", cookies);
   }
 

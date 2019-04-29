@@ -45,8 +45,9 @@ download_ifneed() {
 
     local should_download="no"
     local local_file=""
+    local cookies_file=""
     local target_dir=""
-    
+    local ret=0
     local tmp_url_file=$download_url_file.$retry
     #check frist
     rm -rf $download_tmp_dir/$tmp_url_file
@@ -61,15 +62,29 @@ download_ifneed() {
             local_file=$media_dir/`url_get_path $download_url`/`url_get_file $download_url`
             check_data_by_header $local_file $local_file$header
             [ $? -eq 0 ] && continue
+            cookies_file=$download_cookies_dir/`url_get_file $download_url`
+            [ -f $cookies_file$header ] && clean_file $cookies_file$header
+            check_data_by_header $cookies_file $cookies_file$header
+            ret=$?
+            if [ $ret -eq 0 ]; then
+                target_dir=$media_dir/`url_get_path $download_url`
+                mkdir -p $target_dir
+                mv $cookies_file $cookies_file$header $target_dir
+                continue
+            elif [ $ret -eq $ERROR_CHECK_DATA_HTTP_CODE_FAILED ]; then
+                echo "rm -rf $cookies_file $cookies_file$header"
+                rm -rf $cookies_file $cookies_file$header
+            fi
+
             echo $download_url >> $download_tmp_dir/$tmp_url_file
             should_download="yes"
         fi
     done  < $urlfile
-    
+
     #download if need
     if [ $should_download = "yes" ]; then
-        cd $download_tmp_dir
-        download_urlfile_by_http2 $tmp_url_file
+        cd $download_cookies_dir
+        download_urlfile_by_http2 ../$download_tmp_dir/$tmp_url_file
         cd - > /dev/null
     else
         return 0
@@ -85,7 +100,7 @@ download_ifneed() {
             else
                 download_url=${url%\/*}/$line
             fi
-            local_file=$download_tmp_dir/`url_get_file $download_url`
+            local_file=$download_cookies_dir/`url_get_file $download_url`
             [ -f $local_file$header ] && clean_file $local_file$header
             check_data_by_header $local_file $local_file$header
             if [ $? -eq 0 ]; then
@@ -135,11 +150,13 @@ remote_file=$remote$file
 local_http_file=$local$file
 
 download_tmp_dir=./tmp
+download_cookies_dir=./cookies
 download_url_file=tmp_url
 local_path1=$local_http_path${PWD##*$local_http_root}
 
 rm -rf $download_tmp_dir
 mkdir -p $download_tmp_dir
+mkdir -p $download_cookies_dir
 
 mkdir -p $media_dir
 
