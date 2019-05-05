@@ -73,6 +73,7 @@ void backtracedump(int signo)
 struct transfers_info {
   int total_request;
   int cur_finish;
+  const char *ext;
 };
 
 struct transfer {
@@ -142,7 +143,10 @@ int progress_callback(void *clientp, double dltotal, double dlnow, double ultota
     if(t->finish == 1) return 0;
     
     int nPersent = (int)(100.0*dlnow/dltotal);
-    printf("\r[%d/%d][%d] %d->%s dltotal[%03lf] dlnow[%03lf], cookies: %d", t->info->cur_finish + 1, t->info->total_request, nPersent, t->num, t->url, dltotal, dlnow, t->have_cookies);
+
+    printf("\r");
+    if(t->info->ext != NULL) printf("%s", t->info->ext);
+    printf("[%d/%d][%d] %d->%s dltotal[%03lf] dlnow[%03lf], cookies: %d", t->info->cur_finish + 1, t->info->total_request, nPersent, t->num, t->url, dltotal, dlnow, t->have_cookies);
     fflush(stdout);
     if(dltotal == dlnow) {
         t->finish = 1;
@@ -380,7 +384,9 @@ int main(int argc, char **argv)
   int timeout_update = 0;
   signal(SIGSEGV, backtracedump);
 
-  while((opt = getopt(argc, argv,"f:n:t:v")) != -1) {
+  info.ext = NULL;
+
+  while((opt = getopt(argc, argv,"f:n:t:i:v")) != -1) {
     //optarg is global
     switch(opt) {
     case 'n':
@@ -394,6 +400,10 @@ int main(int argc, char **argv)
     case 't':
         timeout_set = atoi(optarg);
         printf("The setting timeout is %d\n", timeout_set);
+        break;
+    case 'i':
+        info.ext = optarg;
+        printf("info: %s\n", info.ext);
         break;
     case 'v':
         verbose = 1;
@@ -442,7 +452,6 @@ int main(int argc, char **argv)
 
   info.total_request = num_transfers;
   info.cur_finish = 0;
-
   curl_multi_setopt(multi_handle, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
  
   /* we start some action by calling perform right away */ 

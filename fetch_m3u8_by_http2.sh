@@ -26,9 +26,15 @@ log() {
 
 download_urlfile_by_http2() {
     #1 url file
+    #2 total elems
 
     local url_file=$1
-    http2download_from_urlfile -f $url_file -n 50
+    let total=$2
+
+    let need=`cat $url_file | wc -l`
+    let finish=total-need
+
+    http2download_from_urlfile -f $url_file -n 50 -i "[$process_info][$finish/$total]"
     #http2download_from_urlfile $url_file &> /dev/null
 }
 
@@ -37,11 +43,13 @@ download_ifneed() {
     #2 media_dir
     #3 retry
     #4 failed file
-    
+    #5 total elems
+
     local urlfile=$1
     local media_dir=$2
     local retry=$3
     local failed_file=$4
+    local total=$5
 
     local should_download="no"
     local local_file=""
@@ -84,7 +92,7 @@ download_ifneed() {
     #download if need
     if [ $should_download = "yes" ]; then
         cd $download_cookies_dir
-        download_urlfile_by_http2 ../$download_tmp_dir/$tmp_url_file
+        download_urlfile_by_http2 ../$download_tmp_dir/$tmp_url_file $total
         cd - > /dev/null
     else
         return 0
@@ -186,11 +194,13 @@ if [ $? -ne 0 ]; then
 fi
 
 target_url_file=$remote_file
+total_elems=`cat $target_url_file | grep http | wc -l`
+
 failed_file=$download_tmp_dir/failed_file
 declare -i retry=0
 while [ $retry -le 50 ]; do
     failed_file_retry=$failed_file.$retry
-    download_ifneed $target_url_file $media_dir $retry $failed_file_retry
+    download_ifneed $target_url_file $media_dir $retry $failed_file_retry $total_elems
     [ $? -eq 0 ] && break
     target_url_file=$failed_file_retry
     echo target_url_file $target_url_file
