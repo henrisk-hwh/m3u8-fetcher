@@ -46,7 +46,14 @@
 #endif
 #include <execinfo.h>  
 #include <signal.h>  
-  
+ 
+static long long current_us(void) {
+    struct timeval tv_date;
+
+    gettimeofday(&tv_date, NULL);
+    return ((long long)tv_date.tv_sec * 1000000 + (long long)tv_date.tv_usec);
+}
+
 void backtracedump(int signo)  
 {  
     void *buffer[30] = {0};  
@@ -74,6 +81,9 @@ struct transfers_info {
   int total_request;
   int cur_finish;
   const char *ext;
+  char speed_info[10];
+  long long last_ts;
+  double bytes;
 };
 
 struct transfer {
@@ -88,6 +98,7 @@ struct transfer {
   int header_writed;
   int data_writed;
   int have_cookies;
+  double dltotal;
   struct transfers_info *info;
 };
  
@@ -129,6 +140,7 @@ size_t data_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
     }
 
     t->data_writed = 1;
+    t->info->bytes += size * nmemb;
     bytes = fwrite(ptr, size, nmemb, t->out);
     fclose(t->out);
     t->out = NULL;
@@ -142,11 +154,36 @@ int progress_callback(void *clientp, double dltotal, double dlnow, double ultota
     if(dltotal == 0) return 0;
     if(t->finish == 1) return 0;
     
+    long long now = current_us();
+    float time_pass = (now - t->info->last_ts) / (1000 * 1000 * 1.0);
+    if (time_pass > 1.0) {
+        float speed = (float)t->info->bytes / time_pass;
+        if (t->info->bytes > 1024 * 1024) {
+            // MB/s
+            snprintf(t->info->speed_info, sizeof(t->info->speed_info), "%.01fMB/s", speed/(1024 * 1024 * 1.0));
+        } else if (t->info->bytes > 1024) {
+            // KB/s
+            snprintf(t->info->speed_info, sizeof(t->info->speed_info), "%dKB/s", (int)(speed/1024));
+        } else {
+            // B/s
+            snprintf(t->info->speed_info, sizeof(t->info->speed_info), "%dB/s", (int)speed);
+        }
+        t->info->last_ts = now;
+        t->info->bytes = 0;
+    }
+    
     int nPersent = (int)(100.0*dlnow/dltotal);
-
+    
     printf("\r");
     if(t->info->ext != NULL) printf("%s", t->info->ext);
-    printf("[%d/%d][%d] %d->%s dltotal[%03lf] dlnow[%03lf], cookies: %d", t->info->cur_finish + 1, t->info->total_request, nPersent, t->num, t->url, dltotal, dlnow, t->have_cookies);
+    printf("[%d/%d][%d] %s %d->%s dltotal[%03lf] dlnow[%03lf], cookies: %d",
+                t->info->cur_finish + 1, t->info->total_request, nPersent,
+                t->info->speed_info,
+                t->num,
+                t->url,
+                dltotal,
+                dlnow,
+                t->have_cookies);
     fflush(stdout);
     if(dltotal == dlnow) {
         t->finish = 1;
@@ -282,7 +319,8 @@ static void setup(struct transfer *t, int num, const char *url, const char *outf
   t->finish = 0;
   t->header_writed = 0;
   t->data_writed = 0;
-  
+  t->dltotal = 0;
+
   snprintf(headerfilename, 128, "%s.header", outfilename);
 /*
   t->out = fopen(outfilename, "wb");
@@ -385,6 +423,9 @@ int main(int argc, char **argv)
   signal(SIGSEGV, backtracedump);
 
   info.ext = NULL;
+  info.last_ts = current_us();
+  info.bytes = 0;
+  snprintf(info.speed_info, sizeof(info.speed_info), "0B/s");
 
   while((opt = getopt(argc, argv,"f:n:t:i:v")) != -1) {
     //optarg is global
